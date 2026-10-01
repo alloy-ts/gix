@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, test } from "vite-plus/test";
+import { Signature } from "./lib.ts";
 import { main } from "./main.ts";
 
 test("main returns Hello, world!", () => {
@@ -16,4 +17,10 @@ test("main initializes repo when path provided", () => {
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
+});
+
+test("Signature works in TypeScript", () => {
+  const sig = Signature.now("TS User", "ts@example.com");
+  expect(sig.name()).toBe("TS User");
+  expect(sig.email()).toBe("ts@example.com");
 });

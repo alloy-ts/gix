@@ -4,9 +4,9 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const { Repository } = require("./index.js");
+const { Repository, Signature } = require("./index.js");
 
-test("Repository init, open, and methods", () => {
+test("Repository init, open, and basic operations", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "git2-test-"));
   try {
     const repo = Repository.init(tmpDir);
@@ -23,6 +23,35 @@ test("Repository init, open, and methods", () => {
     repo.addIgnoreRule("*.log");
     assert.equal(repo.isPathIgnored("test.log"), true);
     assert.equal(repo.isPathIgnored("test.txt"), false);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("Signature creation and properties", () => {
+  const sig = Signature.now("Test User", "user@example.com");
+  assert.ok(sig);
+  assert.equal(sig.name(), "Test User");
+  assert.equal(sig.email(), "user@example.com");
+  assert.ok(sig.timeSeconds() > 0);
+});
+
+test("Repository config and index access", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "git2-cfg-test-"));
+  try {
+    const repo = Repository.init(tmpDir);
+    const cfg = repo.config();
+    assert.ok(cfg);
+    cfg.setString("user.name", "NAPI User");
+    assert.equal(cfg.getString("user.name"), "NAPI User");
+
+    const idx = repo.index();
+    assert.ok(idx);
+    assert.equal(idx.len(), 0);
+
+    const refdb = repo.refdb();
+    assert.ok(refdb);
+    refdb.compress();
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

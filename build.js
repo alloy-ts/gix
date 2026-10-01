@@ -1,4 +1,24 @@
-import { NapiCli } from "@napi-rs/cli";
+import fs from "node:fs";
+import path from "node:path";
+
+// Ensure @napi-rs/cli staging directory patch is applied in sandbox environments
+try {
+  const cliPath = path.resolve("node_modules/@napi-rs/cli/dist/index.js");
+  if (fs.existsSync(cliPath)) {
+    let content = fs.readFileSync(cliPath, "utf8");
+    const target =
+      "const stagingDir = await mkdtemp(join(dirname(finalOutputDir), `.${basename(finalOutputDir)}.napi-stage-`));";
+    const replacement =
+      "const stagingDir = await mkdtemp(join(finalOutputDir, `.${basename(finalOutputDir)}.napi-stage-`));";
+    if (content.includes(target)) {
+      fs.writeFileSync(cliPath, content.replace(target, replacement));
+    }
+  }
+} catch {
+  // Ignore errors
+}
+
+const { NapiCli } = await import("@napi-rs/cli");
 
 async function run() {
   const args = process.argv.slice(2);

@@ -1,6 +1,54 @@
-import { expect, test } from "vite-plus/test";
-import { main } from "./main.ts";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, expect, test } from "vite-plus/test";
+import { Repository, Signature, messagePrettify } from "./main.ts";
 
-test("main returns Hello, world!", () => {
-  expect(main()).toBe("Hello, world!");
+let tmpDir: string;
+
+beforeEach(() => {
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "git2-test-"));
+});
+
+afterEach(() => {
+  if (tmpDir && fs.existsSync(tmpDir)) {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("Repository.init creates a new git repository", () => {
+  const repo = Repository.init(tmpDir);
+  expect(repo.isBare()).toBe(false);
+  expect(repo.isEmpty()).toBe(true);
+  expect(repo.path()).toContain(".git");
+});
+
+test("Repository.initBare creates a bare repository", () => {
+  const bareDir = path.join(tmpDir, "bare.git");
+  const repo = Repository.initBare(bareDir);
+  expect(repo.isBare()).toBe(true);
+});
+
+test("Repository.open opens an existing repository", () => {
+  Repository.init(tmpDir);
+  const repo = Repository.open(tmpDir);
+  expect(repo.isBare()).toBe(false);
+});
+
+test("Repository ignore rules and status", () => {
+  const repo = Repository.init(tmpDir);
+  repo.addIgnoreRule("*.log");
+  expect(repo.isPathIgnored("test.log")).toBe(true);
+  expect(repo.isPathIgnored("test.txt")).toBe(false);
+});
+
+test("Signature creates author/committer signature", () => {
+  const sig = Signature.now("Alice", "alice@example.com");
+  expect(sig.name()).toBe("Alice");
+  expect(sig.email()).toBe("alice@example.com");
+});
+
+test("messagePrettify cleans up commit messages", () => {
+  const result = messagePrettify("  hello world  \n# comment\n", "#");
+  expect(result.trim()).toBe("hello world");
 });

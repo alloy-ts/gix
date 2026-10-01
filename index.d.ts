@@ -9,4 +9,180 @@
  */
 export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
 
-export declare function add(left: number, right: number): number
+export declare class Blob {
+  id(): string
+  content(): Buffer
+  isBinary(): boolean
+  size(): number
+}
+
+export declare class Branch {
+  name(): string | null
+  isHead(): boolean
+  get(): Reference
+}
+
+export declare class Commit {
+  id(): string
+  message(): string | null
+  summary(): string | null
+  author(): Signature
+  committer(): Signature
+  tree(): Tree
+  parentCount(): number
+  parentId(i: number): string
+  parent(i: number): Commit
+}
+
+export declare class Index {
+  addPath(path: string): void
+  removePath(path: string): void
+  write(): void
+  writeTree(): string
+}
+
+export declare class Object {
+  id(): string
+  kind(): number | null
+  shortId(): string | null
+}
+
+export declare class Reference {
+  name(): string | null
+  target(): string | null
+  symbolicTarget(): string | null
+  isBranch(): boolean
+  isRemote(): boolean
+  isTag(): boolean
+}
+
+export declare class Repository {
+  static init(path: string): Repository
+  static initBare(path: string): Repository
+  static open(path: string): Repository
+  static openBare(path: string): Repository
+  static clone(url: string, path: string): Repository
+  static discover(path: string): Repository
+  isBare(): boolean
+  isEmpty(): boolean
+  isShallow(): boolean
+  isWorktree(): boolean
+  path(): string
+  workdir(): string | null
+  state(): number
+  headName(): string
+  headDetached(): boolean
+  addIgnoreRule(rules: string): void
+  clearIgnoreRules(): void
+  isPathIgnored(path: string): boolean
+  remotes(): Array<string>
+  tagNames(pattern?: string | undefined | null): Array<string>
+  statuses(): Array<StatusEntry>
+  findCommit(oid: string): Commit
+  findTree(oid: string): Tree
+  findBlob(oid: string): Blob
+  findTag(oid: string): Tag
+  findReference(name: string): Reference
+  findBranch(name: string, branchType: number): Branch
+  createBranch(name: string, commit: Commit, force: boolean): Branch
+  revparseSingle(spec: string): Object
+  revwalk(): Revwalk
+  index(): Index
+  signature(): Signature
+  createCommit(updateRef: string | undefined | null, author: Signature, committer: Signature, message: string, tree: Tree, parents: Array<Commit>): string
+  createTag(name: string, target: Object, tagger: Signature, message: string, force: boolean): string
+  createTagLightweight(name: string, target: Object, force: boolean): string
+}
+
+export declare class Revwalk {
+  push(oid: string): void
+  pushHead(): void
+  reset(): void
+  next(): string | null
+}
+
+export declare class Signature {
+  constructor(name: string, email: string)
+  static now(name: string, email: string): Signature
+  name(): string | null
+  email(): string | null
+}
+
+export declare class StatusEntry {
+  path(): string | null
+  status(): number
+}
+
+export declare class Tag {
+  id(): string
+  name(): string | null
+  message(): string | null
+  targetId(): string
+}
+
+export declare class Tree {
+  id(): string
+  len(): number
+  get(index: number): TreeEntry | null
+  getByPath(path: string): TreeEntry | null
+}
+
+export declare class TreeEntry {
+  id(): string
+  name(): string | null
+  filemode(): number
+  kind(): number | null
+}
+
+export declare const enum BranchType {
+  Local = 1,
+  Remote = 2,
+}
+
+export declare const enum Delta {
+  Unmodified = 0,
+  Added = 1,
+  Deleted = 2,
+  Modified = 3,
+  Renamed = 4,
+  Copied = 5,
+  Ignored = 6,
+  Untracked = 7,
+  Typechange = 8,
+  Unreadable = 9,
+  Conflicted = 10,
+}
+
+export declare function messagePrettify(message: string, commentChar?: string | undefined | null): string
+
+export declare const enum ObjectType {
+  Any = -2,
+  Bad = -1,
+  Commit = 1,
+  Tree = 2,
+  Blob = 3,
+  Tag = 4,
+  OffsetDelta = 6,
+  HashDelta = 7,
+}
+
+export declare const enum RepositoryState {
+  Clean = 0,
+  Merge = 1,
+  Revert = 2,
+  RevertSequence = 3,
+  CherryPick = 4,
+  CherryPickSequence = 5,
+  Bisect = 6,
+  Rebase = 7,
+  RebaseInteractive = 8,
+  RebaseMerge = 9,
+  ApplyMailbox = 10,
+  ApplyMailboxOrRebase = 11,
+}
+
+export declare const enum ResetType {
+  Soft = 1,
+  Mixed = 2,
+  Hard = 3,
+}

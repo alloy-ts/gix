@@ -4,7 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const { Repository, Signature } = require("./index.js");
+const { Repository, Signature, Reference } = require("./index.js");
 
 test("Repository init, open, and basic operations", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "git2-test-"));
@@ -52,6 +52,23 @@ test("Repository config and index access", () => {
     const refdb = repo.refdb();
     assert.ok(refdb);
     refdb.compress();
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("Reference static functions and repository references", () => {
+  assert.equal(Reference.isValidName("refs/heads/main"), true);
+  assert.equal(Reference.isValidName("invalid ref name"), false);
+  assert.equal(Reference.normalizeName("refs/heads/main"), "refs/heads/main");
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "git2-ref-test-"));
+  try {
+    const repo = Repository.init(tmpDir);
+    const refs = repo.references();
+    assert.ok(Array.isArray(refs));
+    const names = repo.referenceNames();
+    assert.ok(Array.isArray(names));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

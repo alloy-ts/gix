@@ -16,8 +16,8 @@ impl Signature {
   pub fn now(name: String, email: String) -> napi::Result<Self> {
     let sig = git2::Signature::now(&name, &email).map_err(|e| Error::from_reason(e.to_string()))?;
     Ok(Self {
-      name: sig.name().unwrap_or("").to_string(),
-      email: sig.email().unwrap_or("").to_string(),
+      name: sig.name().ok().unwrap_or("").to_string(),
+      email: sig.email().ok().unwrap_or("").to_string(),
       time_seconds: sig.when().seconds(),
     })
   }
@@ -328,7 +328,9 @@ impl Blob {
 pub struct Reference {
   name: Option<String>,
   target: Option<String>,
+  target_peel: Option<String>,
   symbolic_target: Option<String>,
+  kind: String,
   is_branch: bool,
   is_remote: bool,
   is_tag: bool,
@@ -338,6 +340,17 @@ pub struct Reference {
 
 #[napi]
 impl Reference {
+  #[napi]
+  pub fn is_valid_name(name: String) -> bool {
+    git2::Reference::is_valid_name(&name)
+  }
+
+  #[napi]
+  pub fn normalize_name(name: String) -> napi::Result<String> {
+    git2::Reference::normalize_name(&name, git2::ReferenceFormat::NORMAL)
+      .map_err(|e| Error::from_reason(e.to_string()))
+  }
+
   #[napi]
   pub fn name(&self) -> Option<String> {
     self.name.clone()
@@ -349,8 +362,18 @@ impl Reference {
   }
 
   #[napi]
+  pub fn target_peel(&self) -> Option<String> {
+    self.target_peel.clone()
+  }
+
+  #[napi]
   pub fn symbolic_target(&self) -> Option<String> {
     self.symbolic_target.clone()
+  }
+
+  #[napi]
+  pub fn kind(&self) -> String {
+    self.kind.clone()
   }
 
   #[napi]
@@ -377,14 +400,102 @@ impl Reference {
   pub fn shorthand(&self) -> Option<String> {
     self.shorthand.clone()
   }
+
+  #[napi]
+  pub fn resolve(&self, repo_path: String) -> napi::Result<Reference> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let resolved = rf.resolve().map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Reference::from_git2(&resolved))
+  }
+
+  #[napi]
+  pub fn set_target(&self, repo_path: String, oid_hex: String, log_message: String) -> napi::Result<Reference> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let oid = git2::Oid::from_str(&oid_hex).map_err(|e| Error::from_reason(e.to_string()))?;
+    let updated = rf.set_target(oid, &log_message).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Reference::from_git2(&updated))
+  }
+
+  #[napi]
+  pub fn symbolic_set_target(&self, repo_path: String, target: String, log_message: String) -> napi::Result<Reference> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let updated = rf.symbolic_set_target(&target, &log_message).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Reference::from_git2(&updated))
+  }
+
+  #[napi]
+  pub fn rename(&self, repo_path: String, new_name: String, force: bool, log_message: String) -> napi::Result<Reference> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let updated = rf.rename(&new_name, force, &log_message).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Reference::from_git2(&updated))
+  }
+
+  #[napi]
+  pub fn delete(&self, repo_path: String) -> napi::Result<()> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    rf.delete().map_err(|e| Error::from_reason(e.to_string()))
+  }
+
+  #[napi]
+  pub fn peel_to_commit(&self, repo_path: String) -> napi::Result<Commit> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let commit = rf.peel_to_commit().map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Commit::from_git2(&commit))
+  }
+
+  #[napi]
+  pub fn peel_to_tag(&self, repo_path: String) -> napi::Result<Tag> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let tag = rf.peel_to_tag().map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Tag::from_git2(&tag))
+  }
+
+  #[napi]
+  pub fn peel_to_tree(&self, repo_path: String) -> napi::Result<Tree> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let tree = rf.peel_to_tree().map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Tree::from_git2(&tree))
+  }
+
+  #[napi]
+  pub fn peel_to_blob(&self, repo_path: String) -> napi::Result<Blob> {
+    let name = self.name.as_ref().ok_or_else(|| Error::from_reason("Reference has no name"))?;
+    let repo = git2::Repository::open(repo_path).map_err(|e| Error::from_reason(e.to_string()))?;
+    let rf = repo.find_reference(name).map_err(|e| Error::from_reason(e.to_string()))?;
+    let blob = rf.peel_to_blob().map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Blob::from_git2(&blob))
+  }
 }
 
 impl Reference {
   fn from_git2(reference: &git2::Reference) -> Self {
+    let kind = match reference.kind() {
+      Some(git2::ReferenceType::Direct) => "Direct".to_string(),
+      Some(git2::ReferenceType::Symbolic) => "Symbolic".to_string(),
+      None => "Unknown".to_string(),
+    };
     Self {
       name: reference.name().ok().map(|s| s.to_string()),
       target: reference.target().map(|oid| oid.to_string()),
+      target_peel: reference.target_peel().map(|oid| oid.to_string()),
       symbolic_target: reference.symbolic_target().ok().flatten().map(|s| s.to_string()),
+      kind,
       is_branch: reference.is_branch(),
       is_remote: reference.is_remote(),
       is_tag: reference.is_tag(),
@@ -418,7 +529,9 @@ impl Branch {
     Reference {
       name: self.reference.name.clone(),
       target: self.reference.target.clone(),
+      target_peel: self.reference.target_peel.clone(),
       symbolic_target: self.reference.symbolic_target.clone(),
+      kind: self.reference.kind.clone(),
       is_branch: self.reference.is_branch,
       is_remote: self.reference.is_remote,
       is_tag: self.reference.is_tag,
@@ -522,8 +635,8 @@ impl Reflog {
       entries.push(ReflogEntry {
         id_old: entry.id_old().to_string(),
         id_new: entry.id_new().to_string(),
-        committer_name: committer.name().unwrap_or("").to_string(),
-        committer_email: committer.email().unwrap_or("").to_string(),
+        committer_name: committer.name().ok().unwrap_or("").to_string(),
+        committer_email: committer.email().ok().unwrap_or("").to_string(),
         committer_time: committer.when().seconds(),
         message: entry.message().ok().flatten().map(|s| s.to_string()),
       });
@@ -869,8 +982,8 @@ impl Blame {
     for hunk in blame.iter() {
       let (sig_name, sig_email, sig_time) = if let Some(sig) = hunk.final_signature() {
         (
-          sig.name().unwrap_or("").to_string(),
-          sig.email().unwrap_or("").to_string(),
+          sig.name().ok().unwrap_or("").to_string(),
+          sig.email().ok().unwrap_or("").to_string(),
           sig.when().seconds(),
         )
       } else {
@@ -1035,6 +1148,133 @@ impl Repository {
   }
 
   #[napi]
+  pub fn refname_to_id(&self, name: String) -> napi::Result<String> {
+    let oid = self.inner.refname_to_id(&name).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(oid.to_string())
+  }
+
+  #[napi]
+  pub fn reference(
+    &self,
+    name: String,
+    id_hex: String,
+    force: bool,
+    log_message: String,
+  ) -> napi::Result<Reference> {
+    let oid = git2::Oid::from_str(&id_hex).map_err(|e| Error::from_reason(e.to_string()))?;
+    let rf = self.inner.reference(&name, oid, force, &log_message).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Reference::from_git2(&rf))
+  }
+
+  #[napi]
+  pub fn reference_symbolic(
+    &self,
+    name: String,
+    target: String,
+    force: bool,
+    log_message: String,
+  ) -> napi::Result<Reference> {
+    let rf = self.inner.reference_symbolic(&name, &target, force, &log_message).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Reference::from_git2(&rf))
+  }
+
+  #[napi]
+  pub fn reference_matching(
+    &self,
+    name: String,
+    id_hex: String,
+    force: bool,
+    current_id_hex: String,
+    log_message: String,
+  ) -> napi::Result<Reference> {
+    let oid = git2::Oid::from_str(&id_hex).map_err(|e| Error::from_reason(e.to_string()))?;
+    let current_id = git2::Oid::from_str(&current_id_hex).map_err(|e| Error::from_reason(e.to_string()))?;
+    let rf = self.inner.reference_matching(&name, oid, force, current_id, &log_message).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Reference::from_git2(&rf))
+  }
+
+  #[napi]
+  pub fn reference_symbolic_matching(
+    &self,
+    name: String,
+    target: String,
+    force: bool,
+    current_target: String,
+    log_message: String,
+  ) -> napi::Result<Reference> {
+    let rf = self.inner.reference_symbolic_matching(&name, &target, force, &current_target, &log_message).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Reference::from_git2(&rf))
+  }
+
+  #[napi]
+  pub fn references(&self) -> napi::Result<Vec<Reference>> {
+    let iter = self.inner.references().map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut refs = Vec::new();
+    for r in iter {
+      if let Ok(rf) = r {
+        refs.push(Reference::from_git2(&rf));
+      }
+    }
+    Ok(refs)
+  }
+
+  #[napi]
+  pub fn references_glob(&self, glob: String) -> napi::Result<Vec<Reference>> {
+    let iter = self.inner.references_glob(&glob).map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut refs = Vec::new();
+    for r in iter {
+      if let Ok(rf) = r {
+        refs.push(Reference::from_git2(&rf));
+      }
+    }
+    Ok(refs)
+  }
+
+  #[napi]
+  pub fn reference_names(&self) -> napi::Result<Vec<String>> {
+    let iter = self.inner.references().map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut names = Vec::new();
+    for r in iter {
+      if let Ok(rf) = r {
+        if let Ok(name) = rf.name() {
+          names.push(name.to_string());
+        }
+      }
+    }
+    Ok(names)
+  }
+
+  #[napi]
+  pub fn reference_names_glob(&self, glob: String) -> napi::Result<Vec<String>> {
+    let iter = self.inner.references_glob(&glob).map_err(|e| Error::from_reason(e.to_string()))?;
+    let mut names = Vec::new();
+    for r in iter {
+      if let Ok(rf) = r {
+        if let Ok(name) = rf.name() {
+          names.push(name.to_string());
+        }
+      }
+    }
+    Ok(names)
+  }
+
+  #[napi]
+  pub fn reference_has_log(&self, name: String) -> napi::Result<bool> {
+    self.inner.reference_has_log(&name).map_err(|e| Error::from_reason(e.to_string()))
+  }
+
+  #[napi]
+  pub fn reference_ensure_log(&self, name: String) -> napi::Result<()> {
+    self.inner.reference_ensure_log(&name).map_err(|e| Error::from_reason(e.to_string()))
+  }
+
+  #[napi]
+  pub fn reference_remove(&self, name: String) -> napi::Result<()> {
+    let mut rf = self.inner.find_reference(&name).map_err(|e| Error::from_reason(e.to_string()))?;
+    rf.delete().map_err(|e| Error::from_reason(e.to_string()))
+  }
+
+  #[napi]
   pub fn index(&self) -> napi::Result<Index> {
     let path = self.inner.path().to_string_lossy().into_owned();
     Ok(Index { repo_path: path })
@@ -1063,8 +1303,8 @@ impl Repository {
   pub fn signature(&self) -> napi::Result<Signature> {
     let sig = self.inner.signature().map_err(|e| Error::from_reason(e.to_string()))?;
     Ok(Signature {
-      name: sig.name().unwrap_or("").to_string(),
-      email: sig.email().unwrap_or("").to_string(),
+      name: sig.name().ok().unwrap_or("").to_string(),
+      email: sig.email().ok().unwrap_or("").to_string(),
       time_seconds: sig.when().seconds(),
     })
   }

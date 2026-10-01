@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, test } from "vite-plus/test";
-import { Signature } from "./lib.ts";
+import { Reference, Signature } from "./lib.ts";
 import { main } from "./main.ts";
 
 test("main returns Hello, world!", () => {
@@ -23,4 +23,9 @@ test("Signature works in TypeScript", () => {
   const sig = Signature.now("TS User", "ts@example.com");
   expect(sig.name()).toBe("TS User");
   expect(sig.email()).toBe("ts@example.com");
+});
+
+test("Reference isValidName works in TypeScript", () => {
+  expect(Reference.isValidName("refs/heads/main")).toBe(true);
+  expect(Reference.isValidName("bad ref")).toBe(false);
 });

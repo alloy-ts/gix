@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, test } from "vite-plus/test";
-import { Repository, Signature, messagePrettify } from "./main.ts";
+import { Reference, Repository, Signature, messagePrettify } from "./main.ts";
 
 let tmpDir: string;
 
@@ -51,4 +51,23 @@ test("Signature creates author/committer signature", () => {
 test("messagePrettify cleans up commit messages", () => {
   const result = messagePrettify("  hello world  \n# comment\n", "#");
   expect(result.trim()).toBe("hello world");
+});
+
+test("Reference name validation", () => {
+  expect(Reference.isValidName("refs/heads/main")).toBe(true);
+  expect(Reference.isValidName("invalid..name")).toBe(false);
+});
+
+test("TreeBuilder and Odb write", () => {
+  const repo = Repository.init(tmpDir);
+  const odb = repo.odb();
+  const blobOid = odb.write(3, Buffer.from("hello world"));
+  expect(blobOid).toBeTruthy();
+  expect(odb.exists(blobOid)).toBe(true);
+
+  const tb = repo.treebuilder();
+  tb.insert("hello.txt", blobOid, 0o100644);
+  expect(tb.len()).toBe(1);
+  const treeOid = tb.write();
+  expect(treeOid).toBeTruthy();
 });

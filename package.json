@@ -2,7 +2,9 @@
   "name": "@lib/git2",
   "version": "0.1.0",
   "files": [
-    "dist"
+    "dist",
+    "index.js",
+    "index.d.ts"
   ],
   "main": "index.js",
   "types": "index.d.ts",

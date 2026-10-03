@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+use crate::object::{Blob, Commit, Tag, Tree};
 
 #[napi]
 pub enum ObjectType {
@@ -10,33 +11,6 @@ pub enum ObjectType {
   Tree = 2,
   Blob = 3,
   Tag = 4,
-}
-
-#[napi]
-pub struct Signature {
-  name: Option<String>,
-  email: Option<String>,
-}
-
-#[napi]
-impl Signature {
-  #[napi(constructor)]
-  pub fn new(name: String, email: String) -> Self {
-    Signature {
-      name: Some(name),
-      email: Some(email),
-    }
-  }
-
-  #[napi]
-  pub fn name(&self) -> Option<String> {
-    self.name.clone()
-  }
-
-  #[napi]
-  pub fn email(&self) -> Option<String> {
-    self.email.clone()
-  }
 }
 
 #[napi]
@@ -67,128 +41,6 @@ impl Reference {
   #[napi]
   pub fn is_remote(&self) -> bool {
     self.name.starts_with("refs/remotes/")
-  }
-}
-
-#[napi]
-pub struct Tree {
-  repo: Arc<gix::ThreadSafeRepository>,
-  oid: gix::hash::ObjectId,
-}
-
-#[napi]
-impl Tree {
-  #[napi]
-  pub fn id(&self) -> String {
-    self.oid.to_string()
-  }
-
-  #[napi]
-  pub fn len(&self) -> Result<u32> {
-    let repo = self.repo.to_thread_local();
-    let tree = repo.find_tree(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let decoded = tree.decode().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(decoded.entries.len() as u32)
-  }
-
-  #[napi]
-  pub fn is_empty(&self) -> Result<bool> {
-    let repo = self.repo.to_thread_local();
-    let tree = repo.find_tree(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let decoded = tree.decode().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(decoded.entries.is_empty())
-  }
-}
-
-#[napi]
-pub struct Commit {
-  repo: Arc<gix::ThreadSafeRepository>,
-  oid: gix::hash::ObjectId,
-}
-
-#[napi]
-impl Commit {
-  #[napi]
-  pub fn id(&self) -> String {
-    self.oid.to_string()
-  }
-
-  #[napi]
-  pub fn message(&self) -> Result<Option<String>> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let msg = commit.message_raw().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(Some(msg.to_string()))
-  }
-
-  #[napi]
-  pub fn summary(&self) -> Result<Option<String>> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let msg = commit.message().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(Some(msg.title.to_string()))
-  }
-
-  #[napi]
-  pub fn body(&self) -> Result<Option<String>> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let msg = commit.message().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(msg.body.map(|b| b.to_string()))
-  }
-
-  #[napi]
-  pub fn time(&self) -> Result<i64> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let time = commit.time().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(time.seconds)
-  }
-
-  #[napi]
-  pub fn author(&self) -> Result<Signature> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let author = commit.author().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(Signature {
-      name: Some(author.name.to_string()),
-      email: Some(author.email.to_string()),
-    })
-  }
-
-  #[napi]
-  pub fn committer(&self) -> Result<Signature> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let committer = commit.committer().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(Signature {
-      name: Some(committer.name.to_string()),
-      email: Some(committer.email.to_string()),
-    })
-  }
-
-  #[napi]
-  pub fn tree_id(&self) -> Result<String> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let tree_id = commit.tree_id().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(tree_id.to_string())
-  }
-
-  #[napi]
-  pub fn parent_count(&self) -> Result<u32> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let count = commit.parent_ids().count() as u32;
-    Ok(count)
-  }
-
-  #[napi]
-  pub fn parent_id(&self, i: u32) -> Result<Option<String>> {
-    let repo = self.repo.to_thread_local();
-    let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let parent_id = commit.parent_ids().nth(i as usize).map(|id| id.detach().to_string());
-    Ok(parent_id)
   }
 }
 
@@ -356,10 +208,7 @@ impl Repository {
       .map_err(|e| Error::from_reason(e.to_string()))?;
     let repo = self.inner.to_thread_local();
     let _ = repo.find_commit(oid_parsed).map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(Commit {
-      repo: self.inner.clone(),
-      oid: oid_parsed,
-    })
+    Ok(Commit::new(self.inner.clone(), oid_parsed))
   }
 
   #[napi]
@@ -368,10 +217,25 @@ impl Repository {
       .map_err(|e| Error::from_reason(e.to_string()))?;
     let repo = self.inner.to_thread_local();
     let _ = repo.find_tree(oid_parsed).map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(Tree {
-      repo: self.inner.clone(),
-      oid: oid_parsed,
-    })
+    Ok(Tree::new(self.inner.clone(), oid_parsed))
+  }
+
+  #[napi]
+  pub fn find_blob(&self, oid: String) -> Result<Blob> {
+    let oid_parsed = gix::hash::ObjectId::from_hex(oid.as_bytes())
+      .map_err(|e| Error::from_reason(e.to_string()))?;
+    let repo = self.inner.to_thread_local();
+    let _ = repo.find_blob(oid_parsed).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Blob::new(self.inner.clone(), oid_parsed))
+  }
+
+  #[napi]
+  pub fn find_tag(&self, oid: String) -> Result<Tag> {
+    let oid_parsed = gix::hash::ObjectId::from_hex(oid.as_bytes())
+      .map_err(|e| Error::from_reason(e.to_string()))?;
+    let repo = self.inner.to_thread_local();
+    let _ = repo.find_tag(oid_parsed).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Tag::new(self.inner.clone(), oid_parsed))
   }
 
   #[napi]

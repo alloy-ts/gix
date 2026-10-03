@@ -7,73 +7,87 @@
  * flavor napi-rs can build is listed, because `NAPI_RS_NATIVE_LIBRARY_PATH`
  * can point the loader at a WASI artifact this package does not build itself.
  */
-export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-wasip1";
+export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
+
+export declare class Blob {
+  id(): string
+  content(): Buffer
+  size(): number
+}
 
 export declare class Commit {
-  id(): string;
-  message(): string | null;
-  summary(): string | null;
-  body(): string | null;
-  time(): number;
-  author(): Signature;
-  committer(): Signature;
-  treeId(): string;
-  parentCount(): number;
-  parentId(i: number): string | null;
+  id(): string
+  message(): string | null
+  summary(): string | null
+  body(): string | null
+  time(): number
+  author(): Signature
+  committer(): Signature
+  treeId(): string
+  parentCount(): number
+  parentId(i: number): string | null
 }
 
 export declare class Reference {
-  name(): string;
-  targetId(): string | null;
-  isTag(): boolean;
-  isRemote(): boolean;
+  name(): string
+  targetId(): string | null
+  isTag(): boolean
+  isRemote(): boolean
 }
 
 export declare class Repository {
-  static open(path: string): Repository;
-  static init(path: string): Repository;
-  static initBare(path: string): Repository;
-  static discover(path: string): Repository;
-  isBare(): boolean;
-  isEmpty(): boolean;
-  isShallow(): boolean;
-  isPristine(): boolean | null;
-  isDirty(): boolean;
-  path(): string;
-  gitDir(): string;
-  commonDir(): string;
-  workdir(): string | null;
-  headName(): string | null;
-  headCommitId(): string | null;
-  headTreeId(): string | null;
-  remoteNames(): Array<string>;
-  objectHash(): string;
-  writeBlob(data: Buffer): string;
-  hasObject(oid: string): boolean;
-  findCommit(oid: string): Commit;
-  findTree(oid: string): Tree;
-  findReference(name: string): Reference;
+  static open(path: string): Repository
+  static init(path: string): Repository
+  static initBare(path: string): Repository
+  static discover(path: string): Repository
+  isBare(): boolean
+  isEmpty(): boolean
+  isShallow(): boolean
+  isPristine(): boolean | null
+  isDirty(): boolean
+  path(): string
+  gitDir(): string
+  commonDir(): string
+  workdir(): string | null
+  headName(): string | null
+  headCommitId(): string | null
+  headTreeId(): string | null
+  remoteNames(): Array<string>
+  objectHash(): string
+  writeBlob(data: Buffer): string
+  hasObject(oid: string): boolean
+  findCommit(oid: string): Commit
+  findTree(oid: string): Tree
+  findBlob(oid: string): Blob
+  findTag(oid: string): Tag
+  findReference(name: string): Reference
 }
 
 export declare class Signature {
-  constructor(name: string, email: string);
-  name(): string | null;
-  email(): string | null;
+  constructor(name: string, email: string)
+  name(): string | null
+  email(): string | null
+}
+
+export declare class Tag {
+  id(): string
+  name(): string | null
+  targetId(): string
 }
 
 export declare class Tree {
-  id(): string;
-  len(): number;
-  isEmpty(): boolean;
+  id(): string
+  len(): number
+  isEmpty(): boolean
 }
 
-export declare function cliClone(url: string, path: string): string;
+export declare function cliClone(url: string, path: string): string
 
-export declare function cliInit(path: string, bare?: boolean | undefined | null): string;
+export declare function cliInit(path: string, bare?: boolean | undefined | null): string
 
-export declare function cliMain(args: Array<string>): string;
+export declare function cliMain(args: Array<string>): string
 
-export declare function cliStatus(path: string): string;
+export declare function cliStatus(path: string): string
 
 export declare const enum ObjectType {
   Any = -2,

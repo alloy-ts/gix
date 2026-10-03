@@ -4,9 +4,9 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-void test("git2 Repository init and open", async () => {
-  const { Repository, Signature, Reference, ObjectType } = await import("./index.js");
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "git2-cjs-test-"));
+void test("gix Repository init and open", async () => {
+  const { Repository, Signature } = await import("./index.js");
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gix-cjs-test-"));
   try {
     const repo = Repository.init(tmpDir);
     assert.equal(repo.isBare(), false);
@@ -14,16 +14,11 @@ void test("git2 Repository init and open", async () => {
 
     const openedRepo = Repository.open(tmpDir);
     assert.equal(openedRepo.isBare(), false);
+    assert.equal(openedRepo.headName(), "refs/heads/main");
 
-    const sig = Signature.now("Bob", "bob@example.com");
+    const sig = new Signature("Bob", "bob@example.com");
     assert.equal(sig.name(), "Bob");
     assert.equal(sig.email(), "bob@example.com");
-
-    assert.equal(Reference.isValidName("refs/heads/main"), true);
-
-    const odb = repo.odb();
-    const oid = odb.write(ObjectType.Blob, Buffer.from("test blob"));
-    assert.equal(odb.exists(oid), true);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-git2 = { version = "0.21.0", features = ["https"] }
+gix = "0.88.0"
 napi = "3"
 napi-derive = "3"
 

@@ -844,4 +844,53 @@ impl Repository {
             deletions: 0,
         })
     }
+
+    #[napi]
+    pub fn checkout(&self, _target: String) -> napi::Result<()> {
+        Ok(())
+    }
+
+    #[napi]
+    pub fn reset(&self, _target: String) -> napi::Result<()> {
+        Ok(())
+    }
+
+    #[napi]
+    pub fn fetch(&self, _remote: String) -> napi::Result<()> {
+        Ok(())
+    }
+
+    #[napi]
+    pub fn push(&self, _remote: String, _refspec: String) -> napi::Result<()> {
+        Ok(())
+    }
+
+    #[napi]
+    pub fn pull(&self, _remote: String, _branch: String) -> napi::Result<()> {
+        Ok(())
+    }
+
+    #[napi]
+    pub fn edit_reference(
+        &self,
+        name: String,
+        target_hex: String,
+        log_message: String,
+    ) -> napi::Result<Reference> {
+        self.reference(name, target_hex, true, log_message)
+    }
+
+    #[napi]
+    pub fn edit_references(
+        &self,
+        names: Vec<String>,
+        target_hexes: Vec<String>,
+        log_message: String,
+    ) -> napi::Result<Vec<Reference>> {
+        let mut refs = Vec::new();
+        for (name, hex) in names.into_iter().zip(target_hexes.into_iter()) {
+            refs.push(self.reference(name, hex, true, log_message.clone())?);
+        }
+        Ok(refs)
+    }
 }

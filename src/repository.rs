@@ -3,10 +3,13 @@ use napi_derive::napi;
 use std::path::{Path, PathBuf};
 use gix::bstr::ByteSlice;
 
-use crate::{
-  Blob, Branch, BranchType, Commit, Config, Diff, Index, Reference, RepositoryState, Revwalk,
-  Signature, StatusEntry, Tag, Tree, TreeEntry, Worktree,
-};
+use crate::config::Config;
+use crate::index::Index;
+use crate::object::{Blob, Commit, Tag, Tree, TreeEntry};
+use crate::reference::{Branch, Reference};
+use crate::revwalk::Revwalk;
+use crate::worktree::Worktree;
+use crate::{BranchType, Diff, RepositoryState, Signature, StatusEntry};
 
 pub fn open_gix_repo(path: impl Into<PathBuf>) -> std::result::Result<gix::Repository, Box<dyn std::error::Error>> {
   let mut opts = gix::open::Options::default();

@@ -1,53 +1,52 @@
-# Starter Template
+# @lib/git2
 
-TypeScript starter template.
+Node.js NAPI bindings for Git repository operations powered by [Gitoxide (`gix`)](https://github.com/GitoxideLabs/gitoxide).
 
-## Development
+## Features
 
-- Configure local hooks:
+- High performance native Node.js addon built with NAPI-RS and `gix`.
+- Safety-focused design storing repository paths rather than raw pointers to prevent memory safety / Use-After-Free issues.
+- Backwards compatible doc aliases mapping to `git2` / libgit2 conventions.
+- Full TypeScript type definitions included.
+
+## Installation
 
 ```bash
-npm run prepare
+npm install @lib/git2
 ```
+
+## Quick Start
+
+```typescript
+import { Repository, Signature } from '@lib/git2';
+
+// Initialize a new repository
+const repo = Repository.init('./my-repo');
+
+// Create a blob
+const blobId = repo.blob(Buffer.from('Hello Gitoxide!'));
+
+// Get HEAD reference
+const head = repo.head();
+console.log('HEAD ref name:', head.name());
+```
+
+## Development
 
 - Install dependencies:
 
 ```bash
-vp install
+npm install
 ```
 
-- Run the unit tests:
-
-```bash
-vp test
-```
-
-- Run the locally:
-
-```bash
-npm run dev
-```
-
-- Build the library:
+- Build native addon:
 
 ```bash
 npm run build
 ```
 
-- Code formatting:
+- Run unit tests:
 
 ```bash
-npm run fmt
-```
-
-- Linting:
-
-```bash
-npm run lint
-```
-
-- Code check:
-
-```bash
-npm run check
+npm test
 ```

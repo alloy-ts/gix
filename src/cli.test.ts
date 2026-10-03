@@ -30,11 +30,14 @@ test("cliStatus checks repository status", () => {
   expect(status).toContain("On branch refs/heads/main");
 });
 
-test("cliClone clones repository", () => {
+test("cliClone clones repository from local source", () => {
+  const srcDir = path.join(tmpDir, "srcRepo");
+  cliInit(srcDir, true);
+
   const targetDir = path.join(tmpDir, "cloned");
-  const result = cliClone("https://example.com/repo.git", targetDir);
+  const result = cliClone(srcDir, targetDir);
   expect(result).toContain("Cloned repository");
-  expect(fs.existsSync(path.join(targetDir, ".git"))).toBe(true);
+  expect(fs.existsSync(targetDir)).toBe(true);
 });
 
 test("cliMain dispatches subcommands", () => {

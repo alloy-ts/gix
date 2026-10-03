@@ -14,8 +14,11 @@ pub fn cli_init(path: String, bare: Option<bool>) -> Result<String> {
 
 #[napi]
 pub fn cli_clone(url: String, path: String) -> Result<String> {
-  let repo = gix::init(&path).map_err(|e| Error::from_reason(e.to_string()))?;
-  Ok(format!("Cloned repository from {} to {}", url, repo.path().display()))
+  let mut prep = gix::prepare_clone_bare(url.as_str(), &path)
+    .map_err(|e| Error::from_reason(e.to_string()))?;
+  let (repo, _out) = prep.fetch_only(gix::progress::Discard, &gix::interrupt::IS_INTERRUPTED)
+    .map_err(|e| Error::from_reason(e.to_string()))?;
+  Ok(format!("Cloned repository to {}", repo.path().display()))
 }
 
 #[napi]

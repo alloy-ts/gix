@@ -7,7 +7,17 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-gix = "0.88.0"
+gix = { version = "0.88.0", features = [
+  "blocking-http-transport-reqwest-rust-tls",
+  "revision",
+  "attributes",
+  "dirwalk",
+  "blob-diff",
+  "status",
+  "worktree-mutation",
+  "notes",
+  "mailmap",
+] }
 napi = "3"
 napi-derive = "3"
 

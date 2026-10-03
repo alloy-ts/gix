@@ -117,8 +117,8 @@ impl Commit {
   pub fn message(&self) -> Result<Option<String>> {
     let repo = self.repo.to_thread_local();
     let commit = repo.find_commit(self.oid).map_err(|e| Error::from_reason(e.to_string()))?;
-    let msg = commit.message().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(Some(msg.title.to_string()))
+    let msg = commit.message_raw().map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(Some(msg.to_string()))
   }
 
   #[napi]
@@ -261,9 +261,33 @@ impl Repository {
   }
 
   #[napi]
+  pub fn is_pristine(&self) -> Option<bool> {
+    let repo = self.inner.to_thread_local();
+    repo.is_pristine()
+  }
+
+  #[napi]
+  pub fn is_dirty(&self) -> Result<bool> {
+    let repo = self.inner.to_thread_local();
+    repo.is_dirty().map_err(|e| Error::from_reason(e.to_string()))
+  }
+
+  #[napi]
   pub fn path(&self) -> String {
     let repo = self.inner.to_thread_local();
     repo.path().to_string_lossy().to_string()
+  }
+
+  #[napi]
+  pub fn git_dir(&self) -> String {
+    let repo = self.inner.to_thread_local();
+    repo.git_dir().to_string_lossy().to_string()
+  }
+
+  #[napi]
+  pub fn common_dir(&self) -> String {
+    let repo = self.inner.to_thread_local();
+    repo.common_dir().to_string_lossy().to_string()
   }
 
   #[napi]
@@ -297,6 +321,33 @@ impl Repository {
       Ok(id) => Ok(Some(id.to_string())),
       Err(_) => Ok(None),
     }
+  }
+
+  #[napi]
+  pub fn remote_names(&self) -> Vec<String> {
+    let repo = self.inner.to_thread_local();
+    repo.remote_names().into_iter().map(|name| name.to_string()).collect()
+  }
+
+  #[napi]
+  pub fn object_hash(&self) -> String {
+    let repo = self.inner.to_thread_local();
+    format!("{:?}", repo.object_hash())
+  }
+
+  #[napi]
+  pub fn write_blob(&self, data: Buffer) -> Result<String> {
+    let repo = self.inner.to_thread_local();
+    let id = repo.write_blob(&data).map_err(|e| Error::from_reason(e.to_string()))?;
+    Ok(id.to_string())
+  }
+
+  #[napi]
+  pub fn has_object(&self, oid: String) -> Result<bool> {
+    let oid_parsed = gix::hash::ObjectId::from_hex(oid.as_bytes())
+      .map_err(|e| Error::from_reason(e.to_string()))?;
+    let repo = self.inner.to_thread_local();
+    Ok(repo.has_object(oid_parsed))
   }
 
   #[napi]

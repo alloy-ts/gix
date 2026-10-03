@@ -58,3 +58,20 @@ export declare class Tree {
   len(): number;
   isEmpty(): boolean;
 }
+
+export declare function cliClone(url: string, path: string): string;
+
+export declare function cliInit(path: string, bare?: boolean | undefined | null): string;
+
+export declare function cliMain(args: Array<string>): string;
+
+export declare function cliStatus(path: string): string;
+
+export declare const enum ObjectType {
+  Any = -2,
+  Bad = -1,
+  Commit = 1,
+  Tree = 2,
+  Blob = 3,
+  Tag = 4,
+}

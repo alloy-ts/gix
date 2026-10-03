@@ -1,5 +1,5 @@
 {
-  "name": "@lib/git2",
+  "name": "@lib/gix",
   "version": "0.1.0",
   "files": [
     "dist",

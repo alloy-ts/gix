@@ -15,7 +15,7 @@ const {
 } = require('./index.js');
 
 test('Repository.init creates a repository', () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'git2-test-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gix-test-'));
   try {
     const repo = Repository.init(tmpDir);
     assert.strictEqual(repo.isBare(), false);
@@ -28,7 +28,7 @@ test('Repository.init creates a repository', () => {
 });
 
 test('Repository.open opens an existing repository', () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'git2-test-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gix-test-'));
   try {
     Repository.init(tmpDir);
     const repo = Repository.open(tmpDir);
@@ -40,11 +40,11 @@ test('Repository.open opens an existing repository', () => {
 });
 
 test('Repository.clone clones a repository', () => {
-  const srcDir = fs.mkdtempSync(path.join(os.tmpdir(), 'git2-src-'));
-  const dstDir = path.join(os.tmpdir(), `git2-dst-${Date.now()}-${Math.random().toString(36).substring(2)}`);
+  const srcDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gix-src-'));
+  const dstDir = path.join(os.tmpdir(), `gix-dst-${Date.now()}-${Math.random().toString(36).substring(2)}`);
   try {
     const srcRepo = Repository.init(srcDir);
-    fs.writeFileSync(path.join(srcDir, 'README.md'), 'hello git2');
+    fs.writeFileSync(path.join(srcDir, 'README.md'), 'hello gix');
 
     const index = srcRepo.index();
     index.addPath('README.md');
@@ -73,7 +73,7 @@ test('Repository.clone clones a repository', () => {
 });
 
 test('Repository commits, branches, references, tags, blobs, diffs and revwalk', () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'git2-test-commits-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gix-test-commits-'));
   try {
     const repo = Repository.init(tmpDir);
     fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'hello world');

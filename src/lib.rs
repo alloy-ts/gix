@@ -1,11 +1,24 @@
+pub mod object;
+pub mod odb_handle;
+pub mod ref_store;
 pub mod repository;
 
+pub use object::{Blob, Commit, Tag, Tree, TreeEntry};
+pub use odb_handle::OdbHandle;
+pub use ref_store::RefStore;
 pub use repository::Repository;
 
 use napi::Error;
-use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::path::Path;
+
+pub fn parse_time_str(time_str: &str) -> i64 {
+    time_str
+        .split_whitespace()
+        .next()
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0)
+}
 
 #[napi]
 #[doc(alias = "git2::Signature")]
@@ -30,6 +43,14 @@ impl Signature {
         })
     }
 
+    pub fn new(name: String, email: String, time_seconds: i64) -> Self {
+        Self {
+            name,
+            email,
+            time_seconds,
+        }
+    }
+
     #[napi]
     pub fn name(&self) -> String {
         self.name.clone()
@@ -47,363 +68,18 @@ impl Signature {
 }
 
 #[napi]
-#[doc(alias = "git2::Commit")]
-pub struct Commit {
-    id: String,
-    message: Option<String>,
-    summary: Option<String>,
-    author_name: String,
-    author_email: String,
-    author_time: i64,
-    committer_name: String,
-    committer_email: String,
-    committer_time: i64,
-    parent_ids: Vec<String>,
-    tree_id: String,
-}
-
-#[napi]
-impl Commit {
-    #[napi]
-    pub fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    #[napi]
-    pub fn message(&self) -> Option<String> {
-        self.message.clone()
-    }
-
-    #[napi]
-    pub fn summary(&self) -> Option<String> {
-        self.summary.clone()
-    }
-
-    #[napi]
-    pub fn author(&self) -> Signature {
-        Signature {
-            name: self.author_name.clone(),
-            email: self.author_email.clone(),
-            time_seconds: self.author_time,
-        }
-    }
-
-    #[napi]
-    pub fn committer(&self) -> Signature {
-        Signature {
-            name: self.committer_name.clone(),
-            email: self.committer_email.clone(),
-            time_seconds: self.committer_time,
-        }
-    }
-
-    #[napi]
-    pub fn parent_count(&self) -> u32 {
-        self.parent_ids.len() as u32
-    }
-
-    #[napi]
-    pub fn parent_ids(&self) -> Vec<String> {
-        self.parent_ids.clone()
-    }
-
-    #[napi]
-    pub fn tree_id(&self) -> String {
-        self.tree_id.clone()
-    }
-}
-
-fn parse_time_str(time_str: &str) -> i64 {
-    time_str
-        .split_whitespace()
-        .next()
-        .and_then(|s| s.parse::<i64>().ok())
-        .unwrap_or(0)
-}
-
-impl Commit {
-    fn from_gix(commit: &gix::Commit) -> Self {
-        let id = commit.id.to_string();
-        let message = commit.message_raw().ok().map(|s| s.to_string());
-
-        let (author_name, author_email, author_time) = if let Ok(author) = commit.author() {
-            (
-                author.name.to_string(),
-                author.email.to_string(),
-                parse_time_str(author.time),
-            )
-        } else {
-            ("".to_string(), "".to_string(), 0)
-        };
-
-        let (committer_name, committer_email, committer_time) =
-            if let Ok(committer) = commit.committer() {
-                (
-                    committer.name.to_string(),
-                    committer.email.to_string(),
-                    parse_time_str(committer.time),
-                )
-            } else {
-                ("".to_string(), "".to_string(), 0)
-            };
-
-        let parent_ids = commit.parent_ids().map(|oid| oid.to_string()).collect();
-        let tree_id = commit
-            .tree_id()
-            .ok()
-            .map(|id| id.to_string())
-            .unwrap_or_default();
-
-        Self {
-            id,
-            message: message.clone(),
-            summary: message,
-            author_name,
-            author_email,
-            author_time,
-            committer_name,
-            committer_email,
-            committer_time,
-            parent_ids,
-            tree_id,
-        }
-    }
-}
-
-#[napi]
-#[doc(alias = "git2::Tag")]
-pub struct Tag {
-    id: String,
-    name: Option<String>,
-    target_id: String,
-    message: Option<String>,
-    tagger: Option<Signature>,
-}
-
-#[napi]
-impl Tag {
-    #[napi]
-    pub fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    #[napi]
-    pub fn name(&self) -> Option<String> {
-        self.name.clone()
-    }
-
-    #[napi]
-    pub fn target_id(&self) -> String {
-        self.target_id.clone()
-    }
-
-    #[napi]
-    pub fn message(&self) -> Option<String> {
-        self.message.clone()
-    }
-
-    #[napi]
-    pub fn tagger(&self) -> Option<Signature> {
-        self.tagger.as_ref().map(|t| Signature {
-            name: t.name.clone(),
-            email: t.email.clone(),
-            time_seconds: t.time_seconds,
-        })
-    }
-}
-
-impl Tag {
-    fn from_gix(tag: &gix::Tag) -> Self {
-        let id = tag.id.to_string();
-        if let Ok(decoded) = tag.decode() {
-            let name = Some(decoded.name.to_string());
-            let target_id = decoded.target.to_string();
-            let message = Some(decoded.message.to_string());
-            let tagger = decoded.tagger().ok().flatten().map(|t| {
-                let name = t.name.to_string();
-                let email = t.email.to_string();
-                let time_seconds = parse_time_str(t.time);
-                Signature {
-                    name,
-                    email,
-                    time_seconds,
-                }
-            });
-
-            Self {
-                id,
-                name,
-                target_id,
-                message,
-                tagger,
-            }
-        } else {
-            Self {
-                id,
-                name: None,
-                target_id: "".to_string(),
-                message: None,
-                tagger: None,
-            }
-        }
-    }
-}
-
-#[napi]
-pub struct TreeEntry {
-    id: String,
-    name: Option<String>,
-    filemode: i32,
-}
-
-#[napi]
-impl TreeEntry {
-    #[napi]
-    pub fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    #[napi]
-    pub fn name(&self) -> Option<String> {
-        self.name.clone()
-    }
-
-    #[napi]
-    pub fn filemode(&self) -> i32 {
-        self.filemode
-    }
-}
-
-#[napi]
-#[doc(alias = "git2::Tree")]
-pub struct Tree {
-    id: String,
-    entries: Vec<TreeEntry>,
-}
-
-#[napi]
-impl Tree {
-    #[napi]
-    pub fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    #[napi]
-    pub fn len(&self) -> u32 {
-        self.entries.len() as u32
-    }
-
-    #[napi]
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
-    }
-
-    #[napi]
-    pub fn entry_by_index(&self, index: u32) -> Option<TreeEntry> {
-        self.entries.get(index as usize).map(|e| TreeEntry {
-            id: e.id.clone(),
-            name: e.name.clone(),
-            filemode: e.filemode,
-        })
-    }
-
-    #[napi]
-    pub fn entry_by_name(&self, name: String) -> Option<TreeEntry> {
-        self.entries
-            .iter()
-            .find(|e| e.name.as_deref() == Some(&name))
-            .map(|e| TreeEntry {
-                id: e.id.clone(),
-                name: e.name.clone(),
-                filemode: e.filemode,
-            })
-    }
-}
-
-impl Tree {
-    fn from_gix(tree: &gix::Tree) -> Self {
-        let id = tree.id.to_string();
-        let mut entries = Vec::new();
-        if let Ok(tree_ref) = tree.decode() {
-            for entry in tree_ref.entries {
-                let filemode = match entry.mode.kind() {
-                    gix::objs::tree::EntryKind::Blob => 0o100644,
-                    gix::objs::tree::EntryKind::BlobExecutable => 0o100755,
-                    gix::objs::tree::EntryKind::Link => 0o120000,
-                    gix::objs::tree::EntryKind::Tree => 0o040000,
-                    gix::objs::tree::EntryKind::Commit => 0o160000,
-                };
-                entries.push(TreeEntry {
-                    id: entry.oid.to_string(),
-                    name: Some(entry.filename.to_string()),
-                    filemode,
-                });
-            }
-        }
-        Self { id, entries }
-    }
-}
-
-#[napi]
-#[doc(alias = "git2::Blob")]
-pub struct Blob {
-    id: String,
-    size: u32,
-    content: Vec<u8>,
-    is_binary: bool,
-}
-
-#[napi]
-impl Blob {
-    #[napi]
-    pub fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    #[napi]
-    pub fn size(&self) -> u32 {
-        self.size
-    }
-
-    #[napi]
-    pub fn content(&self) -> Buffer {
-        Buffer::from(self.content.clone())
-    }
-
-    #[napi]
-    pub fn is_binary(&self) -> bool {
-        self.is_binary
-    }
-}
-
-impl Blob {
-    fn from_gix(blob: &gix::Blob) -> Self {
-        let id = blob.id.to_string();
-        let content = blob.data.clone();
-        let size = content.len() as u32;
-        let is_binary = content.contains(&0);
-        Self {
-            id,
-            size,
-            content,
-            is_binary,
-        }
-    }
-}
-
-#[napi]
 #[doc(alias = "git2::Reference")]
 pub struct Reference {
-    name: Option<String>,
-    target: Option<String>,
-    target_peel: Option<String>,
-    symbolic_target: Option<String>,
-    kind: String,
-    is_branch: bool,
-    is_remote: bool,
-    is_tag: bool,
-    is_note: bool,
-    shorthand: Option<String>,
+    pub(crate) name: Option<String>,
+    pub(crate) target: Option<String>,
+    pub(crate) target_peel: Option<String>,
+    pub(crate) symbolic_target: Option<String>,
+    pub(crate) kind: String,
+    pub(crate) is_branch: bool,
+    pub(crate) is_remote: bool,
+    pub(crate) is_tag: bool,
+    pub(crate) is_note: bool,
+    pub(crate) shorthand: Option<String>,
 }
 
 #[napi]
@@ -607,7 +283,7 @@ impl Reference {
 }
 
 impl Reference {
-    fn from_gix(reference: &gix::Reference) -> Self {
+    pub fn from_gix(reference: &gix::Reference) -> Self {
         let name = Some(reference.name().as_bstr().to_string());
         let shorthand = Some(reference.name().shorten().to_string());
         let (kind, target, target_peel, symbolic_target) = match reference.inner.target {

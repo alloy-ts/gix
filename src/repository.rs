@@ -1,6 +1,6 @@
 use crate::{
-    Blame, Blob, Branch, Commit, Config, Diff, Index, Refdb, Reference, Reflog, Signature,
-    Statuses, Submodule, Tag, Tree, Worktree, parse_time_str,
+    Blame, Blob, Branch, Commit, Config, Diff, Index, OdbHandle, RefStore, Refdb, Reference,
+    Reflog, Signature, Statuses, Submodule, Tag, Tree, Worktree, parse_time_str,
 };
 use napi::Error;
 use napi::bindgen_prelude::*;
@@ -75,6 +75,16 @@ impl Repository {
     pub fn discover(path: String) -> napi::Result<Self> {
         let repo = discover(path)?;
         Ok(Self { inner: repo })
+    }
+
+    #[napi(getter)]
+    pub fn refs(&self) -> RefStore {
+        RefStore::new(self.inner.path().to_path_buf())
+    }
+
+    #[napi(getter)]
+    pub fn objects(&self) -> OdbHandle {
+        OdbHandle::new(self.inner.path().to_path_buf())
     }
 
     #[napi]
@@ -449,21 +459,17 @@ impl Repository {
             .and_then(|r| r.as_ref().ok())
             .map(|a| parse_time_str(a.time))
             .unwrap_or(0);
-        Ok(Signature {
-            name,
-            email,
-            time_seconds,
-        })
+        Ok(Signature::new(name, email, time_seconds))
     }
 
     #[napi]
     pub fn committer(&self) -> napi::Result<Option<Signature>> {
         if let Some(Ok(c)) = self.inner.committer() {
-            Ok(Some(Signature {
-                name: c.name.to_string(),
-                email: c.email.to_string(),
-                time_seconds: parse_time_str(c.time),
-            }))
+            Ok(Some(Signature::new(
+                c.name.to_string(),
+                c.email.to_string(),
+                parse_time_str(c.time),
+            )))
         } else {
             Ok(None)
         }
@@ -472,11 +478,11 @@ impl Repository {
     #[napi]
     pub fn author(&self) -> napi::Result<Option<Signature>> {
         if let Some(Ok(a)) = self.inner.author() {
-            Ok(Some(Signature {
-                name: a.name.to_string(),
-                email: a.email.to_string(),
-                time_seconds: parse_time_str(a.time),
-            }))
+            Ok(Some(Signature::new(
+                a.name.to_string(),
+                a.email.to_string(),
+                parse_time_str(a.time),
+            )))
         } else {
             Ok(None)
         }

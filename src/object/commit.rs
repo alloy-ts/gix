@@ -95,4 +95,9 @@ impl Commit {
       .cloned()
       .ok_or_else(|| Error::new(Status::GenericFailure, "parent index out of bounds"))
   }
+
+  #[napi]
+  pub fn parent_ids(&self) -> Vec<String> {
+    self.parent_ids.clone()
+  }
 }

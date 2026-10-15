@@ -100,6 +100,7 @@ test('Repository commits, branches, references, tags, blobs, diffs and revwalk',
     const commit = repo.findCommit(commitId);
     assert.strictEqual(commit.id(), commitId);
     assert.strictEqual(commit.message(), 'Commit 1');
+    assert.deepStrictEqual(commit.parentIds(), []);
 
     // Create blob
     const blobOid = repo.blob(Buffer.from('blob data content'));
